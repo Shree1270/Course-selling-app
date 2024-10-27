@@ -3,7 +3,7 @@ const Schema = mongoose.Schema
 const ObjectId = mongoose.Types.ObjectId
 
 const userSchema = new Schema({
-    firstName : String,
+    firstName : String, 
     lastName : String,
     email : {type : String, unique : true},
     password : String 
@@ -20,8 +20,8 @@ const courseSchema = new Schema({
     title : String,
     description : String,
     price : Number,
-    imageUrl : String,
-    adminId : ObjectId
+    imageUrl : String, 
+    creatorId : ObjectId
 })
 
 const purchaseSchema = new Schema({
