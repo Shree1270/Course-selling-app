@@ -2,10 +2,11 @@ const { Router } = require("express")
 import { z } from "zod";
 const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
-JWT_SECRET = "course";
+const { JWT_ADMIN_PASSWORD } = require("../config")
 const { adminModel } = require("../db")
+const { adminAuth } = require("../middlewares/admin")
 
-const adminRouter = Router()
+const adminRouter = Router() 
 
 adminRouter.post("/signup", async(req,res)=>{
 
@@ -57,40 +58,83 @@ adminRouter.post("/login", async(req,res)=>{
     const email = req.body.email;
     const password = req.body.password;
 
-    //Find user by email
-    const check = adminModel.find({
+    //Courses admin by email
+    const admin = adminModel.CoursesOne({
         email : email
     })
 
     //comparing the hash password 
-    const matchPassword = await bcrypt.compare(password,check.password)
+    const matchPassword = await bcrypt.compare(password,admin.password)
 
     if(matchPassword){
         const adminToken = jwt.sign({
-            Id : check._id
-        },JWT_SECRET)  //assigning the token to the admin
-    }else{
-        res.status(401).json({
-            msg : "Incorrect crediantels"
+            id : admin._id
+        },JWT_ADMIN_PASSWORD)  
+        }else{
+            res.status(401).json({
+           adminToken   //assigning the token to the admin
         })
     }
 
-    res.status(200).json({
-        msg : "You have successfully login"
+    res.status(401).json({
+        msg : "Incorrect credientals"
     })
 
 
 })
 
-adminRouter.post("/create", (req,res)=>{
+adminRouter.post("/create", adminAuth, async(req,res)=>{
+    const adminId = req.userId;
+
+   const { title, description, price, imageUrl } = req.body;
+
+    const course = await adminModel.create({
+        title,
+        description, 
+        price, 
+        imageUrl,
+        creatorId : adminId
+    })
+
+    res.json({
+        msg : "Courses created",
+        creatorId : course._id
+    })
 
 })
 
-adminRouter.get("/courses", (req,res)=>{
+adminRouter.get("/courses",adminAuth, async(req,res)=>{
+    const adminId = req.userId;
 
+    const Courses = await adminModel.find({
+        creatorId : adminId
+    })
+    
+    res.json({
+        Courses
+    })
 })
 
-adminRouter.put("/add", (req,res)=>{
+adminRouter.put("/add", adminAuth, async(req,res)=>{
+    const adminId = req.userId;
+
+    const { title, description, price, imageUrl, courseId } = req.body;
+ 
+     const course = await adminModel.updateOne(
+         
+        {   _id : courseId,
+            creatorId : adminId},
+        { $set:{title,
+            description, 
+            price, 
+            imageUrl }     
+        }
+    ) 
+
+    res.json({
+        msg : "course updated successfully",
+        creatorId : course._id
+    })
 
 })
 

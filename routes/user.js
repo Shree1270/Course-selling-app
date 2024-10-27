@@ -2,13 +2,14 @@ const { Router } = require("express")
 const bcrypt = require("bcrypt")
 import { z } from "zod";
 const jwt = require("jsonwebtoken")
-JWT_SECRET = "course";
-const { userModel } = require("../db")
+const { JWT_USER_PASSWORD } = require("../config")
+const { userModel, purchaseModel, courseModel } = require("../db")
+const { userAuth } = require("../middlewares/user")
 const userRouter = Router();
 
-userRouter.post("/signup", async(req,res)=>{
+userRouter.post("/signup", async(req,res)=>{ 
 
-    //creating validation 
+    //creating validation  
     const userValidate =  z.object({
         firstName : z.string().min(5).max(50),
         lastName :  z.string().min(5).max(50),
@@ -19,7 +20,7 @@ userRouter.post("/signup", async(req,res)=>{
         .refine((password) => /!@#$%&*_/.test(password),{ msg:"require atleast one special character" })
     }).strict()
 
-    const parse = userValidate.safeParse();
+    const parse = userValidate.safeParse(); //Parseing the object
     if(!parse.success){
         res.status(401).json({
             msg:"something is wrong"
@@ -33,6 +34,7 @@ userRouter.post("/signup", async(req,res)=>{
     const password = req.body.password;
 
 try{
+    // Hashing password
     const hashedPassword = await bcrypt.hash(password,5)
 
     await userModel.create({
@@ -58,29 +60,44 @@ userRouter.post("/login", async(req,res)=>{
     const email = req.body.email;
     const password = req.body.password;
 
-    const find = await userModel.find({
+    // Finding user by email
+    const user = await userModel.findOne({
         email : email
     })
 
-   const match = await bcrypt.compare(password, find.password)
+     //comparing the hash password 
+   const match = await bcrypt.compare(password, user.password)
 
    if(match){
     const token = jwt.sign({
-        Id : find._id
-    },JWT_secret)
+        id : user._id
+    },JWT_USER_PASSWORD)
    }else{
     res.json({
-        msg:"Incorrect crediantels"
+       token // assigning user Token
     })
    }
 
    res.json({
-    msg:"You have successfully login"
+    msg:"Incorrect credientals"
    })
     
 })
 
-userRouter.get("/purchases", (req,res)=>{
+userRouter.get("/purchases",userAuth, async(req,res)=>{
+    userId = req.userId;
+    const purchases = await purchaseModel.find({
+        userId
+    })
+
+    const courseData = await courseModel.findById({
+        _id : { $in : purchases.map(x => x.courseId)} //Finding buyed courses of the user
+    })
+
+    res.json({
+        purchases,
+        courseData
+    })
 
 })
 
